@@ -2,7 +2,7 @@
 """
 To iterate calculation of Fresnel Zone and show reflexion points for GNSS-R
 
-@author: Lubin Roineau, ENSG-Geomatic (internship at UT-ITC Enschede), Aug 26, 2022
+@author: Lubin Roineau, ENSG-Geomatics (internship at UT-ITC Enschede), Aug 26, 2022
 """
 
 
@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from FresnelZone import FresnelZone, PlotEllipse
+from GetOrbits import *
 
 # Usefull constants
 c = 299792458  # m.s-1 Speed of light
