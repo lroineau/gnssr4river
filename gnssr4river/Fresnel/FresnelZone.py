@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+import math as m
 
 # Usefull constants
 c = 299792458  # m.s-1 Speed of light
@@ -27,13 +28,12 @@ def FirstFresnelZone(freq, h, elev):
     at the selected  L-band frequency freq (Hz)
     for an Antenna height h (meters) above the reflecting surface
     for a satellite elevation angle elev (degrees)
-    and azimuth direction azim (degrees)
 
     Output are the parameters of the ellipse [a, b, R ] (meters) where:
-    a is the semi-major axis, aligned with the satellite azimuth 
-    b is the semi-minor axis
+    b is the semi-major axis, aligned with the satellite azimuth 
+    a is the semi-minor axis
     R locates the center of the ellispe 
-    on the satellite azimuth direction (azim)
+    on the satellite azimuth direction
     and R meters away from the base of the Antenna.
 
     The ellipse is located on a flat horizontal surface h meters below
@@ -45,7 +45,11 @@ def FirstFresnelZone(freq, h, elev):
     lfreq = [L1_freq, L2_freq]
 
     if freq not in lfreq:
-        return "Wrong value for L_band frequency"
+        raise Exception("Wrong value for L_band frequency")  
+
+    if elev>50:
+        raise Exception("Wrong value for elevation, can't excede 50° !")  
+
 
     # delta = locus of points corresponding to a fixed delay;
     # typically the first Fresnel zone is is the
@@ -53,18 +57,15 @@ def FirstFresnelZone(freq, h, elev):
     # the surface is constrained to lambda/2" (i.e. 1/2 the wavelength)
     d = lambda_L1/2
 
-    # semi-major and semi-minor dimension
     # from the appendix of Larson and Nievinski, 2013
-    sin_elev_deg = np.sin(elev) * 180/np.pi
-    b = (2*d*h/sin_elev_deg) + (d/sin_elev_deg)**2
-    if b < 0:
-        a,b,R = 0,0,0
-        return a,b,R 
+    # semi-minor axis
+    b = ((lambda_L1*h)/np.sin(m.radians(elev))) + (lambda_L1/(2*np.sin(m.radians(elev))))**2
     b = np.sqrt(b)
-    a = b/sin_elev_deg
+    # semi-majpr axis
+    a = b/np.sin(m.radians(elev))
 
     # determine distance to ellipse center
-    R = (h + d/(np.sin(elev) * 180/np.pi)) / (np.tan(elev) * 180/np.pi)
+    R = (h + d/(np.sin(elev) * np.pi/180)) / (np.tan(elev) * np.pi/180)
 
     return a, b, R
 
@@ -84,12 +85,20 @@ def plotEllipse(a, b, R, azim):
     azim = azim *np.pi/180
     xR = R*np.sin(azim)  # x-position of the center
     yR = R*np.cos(azim)  # y-position of the center
-    theta = (90+azim)*np.pi/180  # rotation angle
+    theta = (90*np.pi/180)+azim  # rotation angle
 
     t = np.linspace(0, 2*np.pi, 100)
 
     x = xR + a*np.cos(theta)*np.cos(t) - b*np.sin(theta)*np.sin(t)
-    y = xR + a*np.sin(theta)*np.cos(t) + b*np.cos(theta)*np.sin(t)
+    y = yR + a*np.sin(theta)*np.cos(t) + b*np.cos(theta)*np.sin(t)
+    # plt.axis('equal')
     plt.plot(x, y)  # rotated ellipse
 
 
+def Center(a, b, R):
+    azim = np.linspace(0, 2*np.pi, 50)    
+    for angle in azim:
+        xR = R*np.sin(angle)  # x-position of the center
+        yR = R*np.cos(angle)  # y-position of the 
+        plt.scatter(xR,yR)
+    plt.show()
