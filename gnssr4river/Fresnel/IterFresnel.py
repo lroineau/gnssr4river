@@ -21,7 +21,7 @@ lambda_L1 = c/L1_freq     # m wavelenght for L1
 lambda_L2 = c/L2_freq     # m wavelenght for L2
 
 elev = [5,10,15]
-azim = np.linspace(0, 360, 200)
+azim = np.linspace(0, 360, 40)
 a5,b5,R5 = FirstFresnelZone(L1_freq, 2, 5)
 a10,b10,R10 = FirstFresnelZone(L1_freq, 2, 10)
 a15,b15,R15 = FirstFresnelZone(L1_freq, 2, 15)

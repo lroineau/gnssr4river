@@ -125,8 +125,8 @@ def plotEllipse(a, b, R, azim, color):
 
     t = np.linspace(0, 2*np.pi, 100)
 
-    x = xR + a*np.cos(theta)*np.cos(t) - b*np.sin(theta)*np.sin(t)
-    y = yR + a*np.sin(theta)*np.cos(t) + b*np.cos(theta)*np.sin(t)
+    x = xR + a*np.cos(azim)*np.cos(t) - b*np.sin(azim)*np.sin(t)
+    y = yR + a*np.sin(azim)*np.cos(t) + b*np.cos(azim)*np.sin(t)
   #  plt.axis('equal')
     plt.plot(x, y, color=color)  # rotated ellipse
 
