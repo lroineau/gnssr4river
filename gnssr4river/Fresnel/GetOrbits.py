@@ -9,6 +9,7 @@ import wget
 import os
 import numpy as np
 import zlib
+import pandas as pd
 import datetime as d
 
 
@@ -95,6 +96,55 @@ def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, sec
     # uncompress file
     file = open('Orbits/esu22156_06.sp3.Z', 'rb').read()
     orb = zlib.decompress(file)
-    f = open('Orbits/orbits.txt', 'wb')
-    f.write(orb)
-    f.close()
+    
+    return orb
+
+     
+
+def read_sp3(file):
+    """
+    Read the sp3 file and turn it to a DataFrame.
+
+    Parameters
+    ----------
+    file : String
+        the sp3 file
+    
+    Return
+    ------
+    df_sp3: DataFrame
+        the content of the sp3 on a DataFrame
+    """
+    try:      
+        f = open('Orbits/{}'.format(file))
+        raw = f.read()
+        f.close()
+        lines  = raw.splitlines()
+        nprn = int(lines[2].split()[1])
+        lines  = raw.splitlines()[22:-1]
+        epochs = lines[::(nprn+1)]
+        nepoch =  len(lines[::(nprn+1)])
+        week, tow, x, y, z, clock, prn = np.zeros((nepoch*nprn, 7)).T
+        for i in range(nepoch):
+            year, month, day, hour, minute, second = np.array(epochs[i].split()[1:], dtype=float)
+            week[i*nprn:(i+1)*nprn], tow[i*nprn:(i+1)*nprn] = \
+				gpsweek(year, month, day, hour, minute, second)
+            for j in range(nprn):
+                prn[i*nprn+j] =  int(lines[i*(nprn+1)+j+1][2:4])
+                x[i*nprn+j] = float(lines[i*(nprn+1)+j+1][4:18])
+                y[i*nprn+j] = float(lines[i*(nprn+1)+j+1][18:32])
+                z[i*nprn+j] = float(lines[i*(nprn+1)+j+1][32:46])
+                clock[i*nprn+j] = float(lines[(i)*(nprn+1)+j+1][46:60])
+    except:
+        print('sorry - the sp3file does not exist')
+        week,tow,x,y,z,prn,clock=[0,0,0,0,0,0,0]
+		
+    df_sp3 = pd.DataFrame({"week":week,
+                           "tow":tow, 
+                           "x":x,
+                           "y":y,
+                           "z":z,
+                           "prn":prn,
+                           "clock":clock})
+        
+    return df_sp3
