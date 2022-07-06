@@ -5,21 +5,30 @@ This code is to plot the reflection points on a map for vizualisation purpose
 @author: Lubin Roineau, ENSG-Geomatics (internship at UT-ITC Enschede), Aug 26, 2022
 """
 
+# Basics import
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.patheffects as pe
 import cartopy
 import cartopy.geodesic as cgeo
 import cartopy.crs as ccrs
-
 import cartopy.io.img_tiles as cimgt
 import io
 from urllib.request import urlopen, Request
 from PIL import Image
+
+# Project import
 from FresnelZone import FirstFresnelZone, plotEllipse 
-import shapely
+from IterFresnel import *
+
+# Usefull constants
+c = 299792458             # m.s-1 Speed of light
+L1_freq = 1575.42e6       # Hz L1 frequency
+L2_freq = 1227.60e6       # Hz L2 frequency
+lambda_L1 = c/L1_freq     # m wavelenght for L1
+lambda_L2 = c/L2_freq     # m wavelenght for L2
+
+###############################################################################
 
 def image_spoof(self, tile):
     '''
@@ -38,6 +47,7 @@ def image_spoof(self, tile):
     img = img.convert(self.desired_tile_form)  # set image format
     return img, self.tileextent(tile), 'lower' # reformat for cartopy
 
+###############################################################################
 
 def calc_extent(lon,lat,dist):
     """
@@ -62,6 +72,7 @@ def calc_extent(lon,lat,dist):
 
     return extent
 
+###############################################################################
 
 def osm_image(lon,lat,dist,sitename=None,style='satellite',save=False):
     """
@@ -132,3 +143,9 @@ def osm_image(lon,lat,dist,sitename=None,style='satellite',save=False):
         fig.savefig(f'Img/{sitename}_{style}_r{dist}_scale{scale}.jpg', dpi=150, bbox_inches='tight')
 
     return
+
+
+###############################################################################
+# For test with Dinkel coordinates
+# osm_image(6.951909549393194,52.42752035169519,250,sitename='TestSat',style='satellite',save=False)
+# osm_image(6.951909549393194,52.42752035169519,250,sitename='TestMap',style='map',save=False)

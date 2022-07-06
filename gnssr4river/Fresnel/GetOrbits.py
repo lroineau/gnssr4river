@@ -5,6 +5,7 @@ This code is to retrieve the orbits of GPS and GLONASS satellites
 @author: Lubin Roineau, ENSG-Geomatics (internship at UT-ITC Enschede), Aug 26, 2022
 """
 
+# Imports
 import wget
 import os
 import numpy as np
@@ -12,12 +13,7 @@ import zlib
 import pandas as pd
 import datetime as d
 
-
-# Some parameters of WGS84 projection...
-a = 6378137.0               # Earth radius (m)
-f = 1./298.257223563      # flattening factor
-e = np.sqrt(2*f-f**2)       # first eccentricity
-
+###############################################################################
 
 def gpsweek(year, month, day, hour, minute, second):
     """
@@ -48,6 +44,7 @@ def gpsweek(year, month, day, hour, minute, second):
      
     return GPS_wk, GPS_sec_wk
 
+###############################################################################
 
 def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, second=None):
     """
@@ -81,25 +78,25 @@ def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, sec
         print("Directory {} already exists".format(dirName))
         
     # data link
-    url = 'http://navigation-office.esa.int/products/gnss-products/{}/esu22156_06.sp3.Z'.format(GPS_wk)
+    url = 'http://navigation-office.esa.int/products/gnss-products/{}/esu{}0_00.sp3.Z'.format(GPS_wk,GPS_wk)
     # Check if file already exists 
-    if os.path.exists('Orbits/esu22156_06.sp3.Z') is True:
+    if os.path.exists('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)) is True:
         print("File already exists")
     # Else it is downloaded
     else:
         wget.download(url, out=dirName)
-        if os.path.exists('Orbits/esu22156_06.sp3.Z') is True:
+        if os.path.exists('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)) is True:
             print("Data download success")
         else:
             print("Fail to retrieve data")
 
     # uncompress file
-    file = open('Orbits/esu22156_06.sp3.Z', 'rb').read()
+    file = open('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk), 'rb').read()
     orb = zlib.decompress(file)
     
     return orb
 
-     
+###############################################################################  
 
 def read_sp3(file):
     """

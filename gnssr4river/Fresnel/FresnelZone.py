@@ -7,11 +7,9 @@ To compute and show the first Fresnel Zone
 
 # Usefull librairies
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
 import math as m
-
+from Geod import CarttoGeo, GeotoCart
 # Usefull constants
 c = 299792458               # m.s-1 Speed of light
 L1_freq = 1575.42e6         # Hz L1 frequency
@@ -19,27 +17,33 @@ L2_freq = 1227.60e6         # Hz L2 frequency
 lambda_L1 = (c/L1_freq)     # m wavelenght for L1
 lambda_L2 = (c/L2_freq)     # m wavelenght for L2
 
+###############################################################################
 
 # Calculation of the First Fresnel Zone
 
 def FirstFresnelZone(freq, h, elev):
     """
-    This function gets the size and center of the First Fresnel Zone ellipse
-    at the selected  L-band frequency freq (Hz)
-    for an Antenna height h (meters) above the reflecting surface
-    for a satellite elevation angle elev (degrees)
-
-    Output are the parameters of the ellipse [a, b, R ] (meters) where:
-    b is the semi-major axis, aligned with the satellite azimuth 
-    a is the semi-minor axis
-    R locates the center of the ellispe 
-    on the satellite azimuth direction
-    and R meters away from the base of the Antenna.
-
-    The ellipse is located on a flat horizontal surface h meters below
-    the receiver.                  
-
+    This function gets the size and center of the First Fresnel Zone ellipse.
     (based on a code by Kristine Larson and Carolyn Roesler)
+    
+    Parameters
+    ----------
+    freq: float
+        frequence of l_band in Hz
+    h: float
+        hight of the receiver in meters
+    elev: float
+        satellite elevation angle in degrees
+    
+    Return
+    ------
+    a: float
+        semi-major axis, aligned with the satellite azimuth (meters)
+    b: float
+        semi-minor axis (meters)
+    R: float 
+        locates the center of the ellispe on the satellite azimuth direction 
+        and R meters away from the base of the Antenna.
     """
 
     lfreq = [L1_freq, L2_freq]
@@ -69,67 +73,86 @@ def FirstFresnelZone(freq, h, elev):
 
     return a, b, R
 
+###############################################################################
 
 def plotEllipse(a, b, R, azim, color):
     """
-    Plots an ellipse
+    Plot an ellipse
     
-    a is the semi-major axis, aligned with the satellite azimuth 
-    b is the semi-minor axis
-    R locates the center of the ellispe (distance in meters from receiver)
-    on the satellite azimuth direction (azim)
-
-    We assume the receiver is located at coordinates (0,0), y axis for North and x axis for East
+    Parameters
+    ----------
+    a: float
+        semi-major axis, aligned with the satellite azimuth (meters)
+    b: float
+        semi-minor axis (meters)
+    R: float 
+        locates the center of the ellispe on the satellite azimuth direction 
+        and R meters away from the base of the Antenna.
+    lon,lat: float
+        position of the receiver in geographical coordinates (degrees)
+    azim: float
+        given azimut of ellipse in degrees
+    color: String
+        given color for the plot
+    
+    Return
+    ------
+    A plot of the ellipse
     """
-
     if azim > 360 or azim < 0:
         raise Exception("Wrong value azim, should be between 0 and 360!")  
 
     azim = azim *np.pi/180
     #xR = R*np.sin(azim)  # x-position of the center
     #yR = R*np.cos(azim)  # y-position of the center
-    theta, xR, yR = 0, 0, 0    
+    theta = 0 
+    
+    X,Y,Z = GeotoCart(lon, lat, 0)
     
     if 0<=azim<=np.pi/2:
         theta = (90*np.pi/180) - azim  # rotation angle
 #        print('theta angle;', theta)
-        xR = R*np.sin(theta)  # x-position of the center
-        yR = R*np.cos(theta)  # y-position of the center
+        xR = X + R*np.sin(theta)  # x-position of the center
+        yR = Y + R*np.cos(theta)  # y-position of the center
 #        print('xR:',xR)
 #        print('________')
 #        print('yR:',yR)
     if np.pi/2<azim<=np.pi:
         theta = (360*np.pi/180) - azim + np.pi/2  # rotation angle
 #        print('theta angle;', theta)
-        xR = R*np.sin(theta)  # x-position of the center
-        yR = R*np.cos(theta)  # y-position of the center
+        xR = X + R*np.sin(theta)  # x-position of the center
+        yR = Y + R*np.cos(theta)  # y-position of the center
 #        print('xR:',xR)
 #        print('________')
 #        print('yR:',yR)
     if np.pi<azim<=3*np.pi/2:
         theta = 2*np.pi - azim + np.pi/2  # rotation angle
 #        print('theta angle;', theta)
-        xR = R*np.sin(theta)  # x-position of the center
-        yR = R*np.cos(theta)  # y-position of the center
+        xR = X + R*np.sin(theta)  # x-position of the center
+        yR = Y + R*np.cos(theta)  # y-position of the center
 #        print('xR:',xR)
 #        print('________')
 #        print('yR:',yR)
     if 3*np.pi/2<azim<=2*np.pi: 
         theta = 2*np.pi - azim + np.pi/2  # rotation angle
 #        print('theta angle;', theta)
-        xR = R*np.sin(theta)  # x-position of the center
-        yR = R*np.cos(theta)  # y-position of the center
+        xR = X + R*np.sin(theta)  # x-position of the center
+        yR = Y + R*np.cos(theta)  # y-position of the center
 #        print('xR:',xR)
 #        print('________')
 #        print('yR:',yR)
 
     t = np.linspace(0, 2*np.pi, 100)
 
-    x = xR + a*np.cos(azim)*np.cos(t) - b*np.sin(azim)*np.sin(t)
-    y = yR + a*np.sin(azim)*np.cos(t) + b*np.cos(azim)*np.sin(t)
+    x = X + a*np.cos(azim)*np.cos(t) - b*np.sin(azim)*np.sin(t)
+    y = Y + a*np.sin(azim)*np.cos(t) + b*np.cos(azim)*np.sin(t)
   #  plt.axis('equal')
     plt.plot(x, y, color=color)  # rotated ellipse
+   # plt.fill_between(x,y, color=color, alpha=0.4)
 
+    return
+
+###############################################################################
 
 def Center(a, b, R, color):
     azim = np.linspace(0, 2*np.pi, 50)    
@@ -167,3 +190,5 @@ def Center(a, b, R, color):
     #        print('________')
     #        print('yR:',yR)
             plt.scatter(xR,yR, color=color)
+    return
+            
