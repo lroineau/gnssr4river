@@ -28,7 +28,7 @@ e_pr = np.sqrt((a**2 - b**2) / b**2) # second excentricity
 # lambda1 = 
 # phi1 = 
 
-# A = np.array([       -np.sin(lambda1),               np.cos(lambda1),              0     ],
+# rot = np.array([       -np.sin(lambda1),               np.cos(lambda1),              0     ],
 #                [-np.sin(phi1)*np.cos(lambda1),  -np.sin(phi1)*np.sin(lambda1), np.cos(phi1)],
 #                [ np.cos(phi1)*np.cos(lambda1),   np.cos(phi1)*np.sin(lambda1), np.sin(phi1)])
 
@@ -100,3 +100,51 @@ def CarttoGeo(X,Y,Z):
     lat = m.degrees(lat)
     
     return lon, lat, h
+
+def sp3toGeo(sp3,x,y,z):
+    """
+    This function takes the coordinates given in a sp3 file and gives the elevation and azimut of the satellite seen from the receiver.
+    
+    Parameters
+    ----------
+    file: DataFrame
+        sp3 file 
+    x,y,z: cartesian coordinates of the receiver in meters
+        sp3 file 
+        
+    Return
+    ------
+    azim, elev: float
+        elevation an azimut of the satellite in degrees 
+        
+    """
+    # Take the coordinates from the sp3, and set unit to meters
+    xsat = sp3["x"] * 1000
+    ysat = sp3["y"] * 1000
+    zsat = sp3["z"] * 1000
+    
+    evel_sat = []
+    azim_sat = []
+    B = []
+    
+    for i in range(len(xsat)):
+        X = xsat[i]-x
+        Y = ysat[i]-y
+        Z = zsat[i]-z
+        
+        B.append([X,Y,Z])
+        B = np.array(B)
+        
+        rot = np.array([-np.sin(lambda1),  -np.sin(phi1)*np.cos(lambda1),   np.cos(phi1)*np.cos(lambda1)],
+                       [ np.cos(lambda1),  -np.sin(phi1)*np.sin(lambda1),   np.cos(phi1)*np.sin(lambda1)],
+                       [        0,                  np.cos(phi1),                   np.sin(phi1)        ])
+        
+        N = np.array([N1*np.cos(lambda1)*np.cos(phi1)],
+                     [N1*np.sin(lambda1)*np.cos(phi1)],
+                     [N1*(1-e**2)*np.sin(phi1)       ])
+        
+        A = np.dot(rot,B)
+    
+        C = np.add(N,A)
+        
+    return B
