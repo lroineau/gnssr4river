@@ -101,7 +101,8 @@ def CarttoGeo(X,Y,Z):
     
     return lon, lat, h
 
-def sp3toGeo(sp3,x,y,z):
+
+#def sp3toGeo(sp3,x,y,z):
     """
     This function takes the coordinates given in a sp3 file and gives the elevation and azimut of the satellite seen from the receiver.
     
@@ -118,7 +119,7 @@ def sp3toGeo(sp3,x,y,z):
         elevation an azimut of the satellite in degrees 
         
     """
-    # Take the coordinates from the sp3, and set unit to meters
+ """   # Take the coordinates from the sp3, and set unit to meters
     xsat = sp3["x"] * 1000
     ysat = sp3["y"] * 1000
     zsat = sp3["z"] * 1000
@@ -148,3 +149,61 @@ def sp3toGeo(sp3,x,y,z):
         C = np.add(N,A)
         
     return B
+"""
+
+def up(lon,lat):
+    """
+    This function gives the normal, east and north vectors for azimut calculs.
+    
+    Parameters
+    ----------
+    lat,lon: float
+        location of latitude and longitudee in degrees 
+        
+    Return
+    ------
+    v_norm, East, North: array
+        up unit vector, and local east and north unit vectors
+    """
+    # set unit to radians
+    lon = m.radians(lon)
+    lat = m.radians(lat)
+    
+    # up vector
+    xo = np.cos(lon)*np.cos(lat)
+    yo = np.sin(lon)*np.cos(lat)
+    zo = np.sin(lat)
+    v_norm = np.array([xo,yo,zo])    
+
+    # north and east vectors
+    North = np.zeros(3)
+    East = np.zeros(3)
+    North[0] = -np.sin(lat)*np.cos(lon)
+    North[1] = -np.sin(lat)*np.sin(lon)
+    North[2] = np.cos(lat)
+    East[0] = -np.sin(lon)
+    East[1] = np.cos(lon)
+    East[2] = 0
+    return v_norm, East, North
+
+
+def elev_angle(v_norm, VSat_Rec):
+    """
+    This function gives the elevation of the satellite from the receiver.
+    
+    Parameters
+    ----------
+    v_norm: array
+        unit vector in up direction
+    Vsat_Rec: array
+        Cartesian vector that points from receiver to the satellite in meters
+        
+    Return
+    ------
+    elev: float
+        elevation angle in degrees
+    """
+    ang = np.arccos(np.dot(VSat_Rec,v_norm) / (norm(VSat_Rec)))
+    angle = np.pi/2.0 - ang
+    
+    return angle*180/np.pi
