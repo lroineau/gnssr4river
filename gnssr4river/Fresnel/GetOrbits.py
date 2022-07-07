@@ -9,7 +9,9 @@ This code is to retrieve the orbits of GPS and GLONASS satellites
 import wget
 import os
 import numpy as np
-import zlib
+import unlzw3
+from pathlib import Path
+import subprocess
 import pandas as pd
 import datetime as d
 
@@ -48,24 +50,33 @@ def gpsweek(year, month, day, hour, minute, second):
 
 def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, second=None):
     """
-    Retrieve the orbits of gnss constellations from ESA site. 
+    Retrieve the orbits of GPS and Glonass constellations from ESA site. If date is not specified, takes current date.
 
     Parameters
     ----------
+    year, month, day, hour, minute, second : int
+        Year (xxx), month, day, hour, minute, second (default is current daytime)
     
     Return
     ------
     
     """
+    # Calcul the current date
+    cur_date = d.datetime.now()
+    cur_date = cur_date.strftime("%Y,%m,%d,%H,%M,%S")
+    cur_date = cur_date.split(",")
+    cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second = int(cur_date[0]), int(cur_date[1]), int(cur_date[2]), int(cur_date[3]), int(cur_date[4]), int(cur_date[5])
+
     # if the date is not given by the user, take current date
     if year==None:
-        cur_date = d.datetime.now()
-        cur_date = cur_date.strftime("%Y,%m,%d,%H,%M,%S")
+        year, month, day, hour, minute, second = cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second
         
-        cur_date = cur_date.split(",")
-        year, month, day, hour, minute, second = int(cur_date[0]), int(cur_date[1]), int(cur_date[2]), int(cur_date[3]), int(cur_date[4]), int(cur_date[5])
-    
-    # Retriecve first the gps week
+    # if user gives an incorrect date
+    giv_date = str(year + ',' + month + ',' + day + ',' + hour + ',' + minute + ',' + second)
+    if giv_date > cur_date:
+        raise Exception("Cannot give a date that is yet to come !")  
+
+    # Retrieve first the gps week
     GPS_wk, GPS_sec_wk = gpsweek(year, month, day, hour, minute, second)
     
     # Create directory
@@ -77,24 +88,31 @@ def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, sec
     else:    
         print("Directory {} already exists".format(dirName))
         
-    # data link
-    url = 'http://navigation-office.esa.int/products/gnss-products/{}/esu{}0_00.sp3.Z'.format(GPS_wk,GPS_wk)
+    # Name of file to retrieve
+    # Zipped name
+    filenameZ = 'esu{}'.format(GPS_wk) + str(int(GPS_sec_wk/86400)) + '_00.sp3.Z' 
+    # Unzipped name    
+    filename = 'esu{}'.format(GPS_wk) + str(int(GPS_sec_wk/86400)) + '_00.sp3'         
+    # data link   
+    url = 'http://navigation-office.esa.int/products/gnss-products/{}/{}'.format(GPS_wk,filenameZ)
     # Check if file already exists 
-    if os.path.exists('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)) is True:
+    if os.path.exists('Orbits/{}'.format(filename)) is True:
         print("File already exists")
     # Else it is downloaded
     else:
         wget.download(url, out=dirName)
-        if os.path.exists('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)) is True:
+        subprocess.call(['uncompress',filename])
+        subprocess.call(['mv',filename, dirName])
+        if os.path.exists('Orbits/{}'.format(filename)) is True:
             print("Data download success")
         else:
             print("Fail to retrieve data")
 
     # uncompress file
-    file = open('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk), 'rb').read()
-    orb = zlib.decompress(file)
-    
-    return orb
+    # subprocess.call(['uncompress', 'Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)])
+    # orb = unlzw3.unlzw(Path('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)))
+
+    return 
 
 ###############################################################################  
 
