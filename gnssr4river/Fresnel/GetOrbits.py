@@ -14,6 +14,7 @@ from pathlib import Path
 import subprocess
 import pandas as pd
 import datetime as d
+from io import BytesIO
 
 ###############################################################################
 
@@ -41,7 +42,7 @@ def gpsweek(year, month, day, hour, minute, second):
         
     JD=np.floor(365.25*y) + np.floor(30.6001*(m+1)) + day + (UT/24.0) + 1720981.5
     GPS_wk=np.floor((JD-2444244.5)/7.0);
-    GPS_wk = np.int(GPS_wk)
+    GPS_wk = int(GPS_wk)
     GPS_sec_wk=np.rint((((JD-2444244.5)/7)-GPS_wk)*7*24*3600)            
      
     return GPS_wk, GPS_sec_wk
@@ -61,6 +62,9 @@ def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, sec
     ------
     
     """
+    # Date given by user
+    giv_date = [str(year),str(month),str(day),str(hour),str(minute),str(second)]
+
     # Calcul the current date
     cur_date = d.datetime.now()
     cur_date = cur_date.strftime("%Y,%m,%d,%H,%M,%S")
@@ -72,12 +76,12 @@ def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, sec
         year, month, day, hour, minute, second = cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second
         
     # if user gives an incorrect date
-    giv_date = str(year + ',' + month + ',' + day + ',' + hour + ',' + minute + ',' + second)
-    if giv_date > cur_date:
+    if giv_date > cur_date is True:
         raise Exception("Cannot give a date that is yet to come !")  
 
     # Retrieve first the gps week
-    GPS_wk, GPS_sec_wk = gpsweek(year, month, day, hour, minute, second)
+    GPS_wk, GPS_sec_wk = gpsweek(year, month, day, hour, minute, second)    
+    print('GPS week is:', GPS_wk)
     
     # Create directory
     dirName = 'Orbits'
@@ -89,30 +93,28 @@ def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, sec
         print("Directory {} already exists".format(dirName))
         
     # Name of file to retrieve
+    t = str(int(GPS_sec_wk/86400))
     # Zipped name
-    filenameZ = 'esu{}'.format(GPS_wk) + str(int(GPS_sec_wk/86400)) + '_00.sp3.Z' 
+    filenameZ = f'esu{GPS_wk}' + t + '_00.sp3.Z' 
+    print('filename is:',filenameZ)
     # Unzipped name    
-    filename = 'esu{}'.format(GPS_wk) + str(int(GPS_sec_wk/86400)) + '_00.sp3'         
+    filename = f'esu{GPS_wk}' + t + '_00.sp3'         
     # data link   
-    url = 'http://navigation-office.esa.int/products/gnss-products/{}/{}'.format(GPS_wk,filenameZ)
+    url = f'http://navigation-office.esa.int/products/gnss-products/{GPS_wk}/{filenameZ}'
     # Check if file already exists 
-    if os.path.exists('Orbits/{}'.format(filename)) is True:
+    if os.path.exists('Orbits/{}'.format(filenameZ)) is True:
         print("File already exists")
     # Else it is downloaded
     else:
         wget.download(url, out=dirName)
-        subprocess.call(['uncompress',filename])
-        subprocess.call(['mv',filename, dirName])
-        if os.path.exists('Orbits/{}'.format(filename)) is True:
+        if os.path.exists('Orbits/{}'.format(filenameZ)) is True:
             print("Data download success")
         else:
             print("Fail to retrieve data")
+        
+    orb = unlzw3.unlzw(Path(f'Orbits/esu{GPS_wk}{t}_00.sp3.Z'))
 
-    # uncompress file
-    # subprocess.call(['uncompress', 'Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)])
-    # orb = unlzw3.unlzw(Path('Orbits/esu{}0_00.sp3.Z'.format(GPS_wk)))
-
-    return 
+    return orb
 
 ###############################################################################  
 
@@ -122,16 +124,22 @@ def read_sp3(file):
 
     Parameters
     ----------
-    file : String
-        the sp3 file
+    file : String or Bytes
+        the sp3 file or the local unzipped file in python in Bytes
     
     Return
     ------
     df_sp3: DataFrame
         the content of the sp3 on a DataFrame
     """
-    try:      
+    # See if the file is a sp3 on hard drive or directly a Bytes in Python
+    if type(file)==bytes:        
+        f = BytesIO(file) 
+    else:
         f = open('Orbits/{}'.format(file))
+    
+    # Read the file 
+    try:      
         raw = f.read()
         f.close()
         lines  = raw.splitlines()
@@ -150,10 +158,13 @@ def read_sp3(file):
                 y[i*nprn+j] = float(lines[i*(nprn+1)+j+1][18:32])
                 z[i*nprn+j] = float(lines[i*(nprn+1)+j+1][32:46])
                 clock[i*nprn+j] = float(lines[(i)*(nprn+1)+j+1][46:60])
+                
+    # if file not found
     except:
         print('sorry - the sp3file does not exist')
         week,tow,x,y,z,prn,clock=[0,0,0,0,0,0,0]
 		
+    # Set the DataFrame
     df_sp3 = pd.DataFrame({"week":week,
                            "tow":tow, 
                            "x":x,
@@ -163,3 +174,5 @@ def read_sp3(file):
                            "clock":clock})
         
     return df_sp3
+
+# shapely ellipse 
