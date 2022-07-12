@@ -8,6 +8,7 @@ This code contains usefull functions for geodesic calculs.
 # Imports
 import numpy as np
 import math as m
+import pandas as pd
 
 # Some parameters of WGS84 projection...
 a = 6378137.0             # Earth radius (m)
@@ -102,7 +103,7 @@ def CarttoGeo(X,Y,Z):
     return lon, lat, h
 
 
-#def sp3toGeo(sp3,x,y,z):
+def sp3toGeo(df_sp3,lon,lat,h):
     """
     This function takes the coordinates given in a sp3 file and gives the elevation and azimut of the satellite seen from the receiver.
     
@@ -110,47 +111,51 @@ def CarttoGeo(X,Y,Z):
     ----------
     file: DataFrame
         sp3 file 
-    x,y,z: cartesian coordinates of the receiver in meters
-        sp3 file 
+    lon,lat: float 
+        longitude and latitude of receivers in degrees
+    h: float
+        heigth of the receiver in meters
         
     Return
     ------
-    azim, elev: float
+    df: DataFrame
         elevation an azimut of the satellite in degrees 
         
     """
- """   # Take the coordinates from the sp3, and set unit to meters
-    xsat = sp3["x"] * 1000
-    ysat = sp3["y"] * 1000
-    zsat = sp3["z"] * 1000
+    # Take the coordinates from the sp3, and set unit to meters
+    xsat = df_sp3["x"] * 1000
+    ysat = df_sp3["y"] * 1000
+    zsat = df_sp3["z"] * 1000
+    prn = df_sp3["prn"]
     
-    evel_sat = []
-    azim_sat = []
-    B = []
+    # Make the output DataFrame
+    x,y,z = GeotoCart(lon,lat,h)
+    a_list = list(range(1, len(xsat)))
+    df = pd.DataFrame(columns = ['PRN', 'elevation', 'azimut'], index = a_list)
+
+    # Local coordinates system
+    v_norm, East, North = up(lon,lat)
     
+    # Calcul elevation and azimut for each satellite of the file
     for i in range(len(xsat)):
         X = xsat[i]-x
         Y = ysat[i]-y
         Z = zsat[i]-z
         
-        B.append([X,Y,Z])
-        B = np.array(B)
+        VSat_Rec = np.array([X,Y,Z])
         
-        rot = np.array([-np.sin(lambda1),  -np.sin(phi1)*np.cos(lambda1),   np.cos(phi1)*np.cos(lambda1)],
-                       [ np.cos(lambda1),  -np.sin(phi1)*np.sin(lambda1),   np.cos(phi1)*np.sin(lambda1)],
-                       [        0,                  np.cos(phi1),                   np.sin(phi1)        ])
-        
-        N = np.array([N1*np.cos(lambda1)*np.cos(phi1)],
-                     [N1*np.sin(lambda1)*np.cos(phi1)],
-                     [N1*(1-e**2)*np.sin(phi1)       ])
-        
-        A = np.dot(rot,B)
+        elev = elev_angle(v_norm, VSat_Rec)
+        azim = azimut_angle(VSat_Rec, East, North)
+        sat = prn[i]
+        df.loc[f'{i}'] = [f'{sat}',elev,azim]      
     
-        C = np.add(N,A)
+    # Drop potential nan inside dataframe
+    df = df.dropna()
         
-    return B
-"""
-
+    return df
+ 
+###############################################################################
+    
 def up(lon,lat):
     """
     This function gives the normal, east and north vectors for azimut calculs.
@@ -186,6 +191,7 @@ def up(lon,lat):
     East[2] = 0
     return v_norm, East, North
 
+###############################################################################
 
 def elev_angle(v_norm, VSat_Rec):
     """
@@ -200,10 +206,85 @@ def elev_angle(v_norm, VSat_Rec):
         
     Return
     ------
-    elev: float
+    elev_sat: float
         elevation angle in degrees
     """
-    ang = np.arccos(np.dot(VSat_Rec,v_norm) / (norm(VSat_Rec)))
-    angle = np.pi/2.0 - ang
+    angle = np.arccos(np.dot(VSat_Rec,v_norm) / (np.linalg.norm(VSat_Rec)))
+    elev_sat = np.pi/2.0 - angle
     
-    return angle*180/np.pi
+    return elev_sat*180/np.pi
+
+###############################################################################
+
+def azimut_angle(VSat_Rec, East, North):
+    """
+    This function gives the azimuth of the satellite from the receiver.
+    
+    Parameters
+    ----------
+    Vsat_Rec: array
+        Cartesian vector that points from receiver to the satellite in meters
+    East, North: array
+        Local east and north unit vectors  
+        
+    Return
+    ------
+    azim_sat: float
+        azimuth angle in degrees
+    """
+    staSatE = East[0]*VSat_Rec[0] + East[1]*VSat_Rec[1] + East[2]*VSat_Rec[2]
+    staSatN = North[0]*VSat_Rec[0] + North[1]*VSat_Rec[1] + North[2]*VSat_Rec[2]
+    
+    azim_sat = np.arctan2(staSatE, staSatN)*180/np.pi
+    if azim_sat < 0:
+        azim_sat = 360 + azim_sat
+
+    return azim_sat
+
+###############################################################################
+
+def FresnelSort(df_sp3, elev):
+    """
+    This function takes the sp3 DataFrame of satellites, and keep only good values of elevation and azimuth.
+    
+    Parameters
+    ----------
+    df_sp3: DataFrame
+        sp3 DataFrame of the satellite.
+    elev: float or list
+        elevation in degrees, should be one number or a list of 2 to give range.
+    Returns
+    -------
+    df_sort: DataFrame
+        DataFrame with wanted value for Fresnel.
+
+    """
+    # First remove all elevation bellow 0
+    df_sp3 = df_sp3[df_sp3['elevation'] > 0]
+    
+    # If elev is a list
+    if isinstance(elev, list):
+        
+        print("Input is a list")
+        
+        elev_min = elev[0] - 1
+        elev_max = elev[1] + 1
+        
+        print("Minimum elevation is:", elev_min, "Maximum elevation is:", elev_max)
+        
+        # Just check if user didn't miss input
+        if elev_min>elev_max:
+            raise Exception("Minimum elevation greater than maximum elevation")  
+
+        df_sp3 = df_sp3.loc[(df_sp3['elevation'] >= elev_min) & (df_sp3['elevation'] <= elev_max)]
+
+    # If elev is only one number
+    else:
+        print("Input is a number")
+        # Take some range to not remove all elevation values
+        elev_min = elev - 1
+        elev_max = elev + 1
+        print("Minimum elevation is:", elev_min, "Maximum elevation is:", elev_max)
+        df_sp3 = df_sp3.loc[(df_sp3['elevation'] >= elev_min) & (df_sp3['elevation'] <= elev_max)]
+
+    return df_sp3
