@@ -127,11 +127,16 @@ def sp3toGeo(df_sp3,lon,lat,h):
     ysat = df_sp3["y"] * 1000
     zsat = df_sp3["z"] * 1000
     prn = df_sp3["prn"]
-    
+    week = df_sp3["week"]
+    tow = df_sp3["tow"]
+    clock = df_sp3["clock"]
+
+    print("Calculation of satellites coordinates in progress, may take a while...")
+
     # Make the output DataFrame
     x,y,z = GeotoCart(lon,lat,h)
     a_list = list(range(1, len(xsat)))
-    df = pd.DataFrame(columns = ['PRN', 'elevation', 'azimut'], index = a_list)
+    df = pd.DataFrame(columns = ['PRN', 'week', 'tow','clock', 'elevation', 'azimuth'], index = a_list)
 
     # Local coordinates system
     v_norm, East, North = up(lon,lat)
@@ -147,10 +152,15 @@ def sp3toGeo(df_sp3,lon,lat,h):
         elev = elev_angle(v_norm, VSat_Rec)
         azim = azimut_angle(VSat_Rec, East, North)
         sat = prn[i]
-        df.loc[f'{i}'] = [f'{sat}',elev,azim]      
+        we = week[i]
+        tw = tow[i]
+        cl = clock[i]
+        df.loc[f'{i}'] = [f'{sat}',f'{we}',f'{tw}',f'{cl}',round(elev),round(azim)]      
     
     # Drop potential nan inside dataframe
     df = df.dropna()
+    
+    df = df.astype({'week':'float','tow':'float','clock':'float','azimuth':'float'})
         
     return df
  
@@ -241,50 +251,3 @@ def azimut_angle(VSat_Rec, East, North):
 
     return azim_sat
 
-###############################################################################
-
-def FresnelSort(df_sp3, elev):
-    """
-    This function takes the sp3 DataFrame of satellites, and keep only good values of elevation and azimuth.
-    
-    Parameters
-    ----------
-    df_sp3: DataFrame
-        sp3 DataFrame of the satellite.
-    elev: float or list
-        elevation in degrees, should be one number or a list of 2 to give range.
-    Returns
-    -------
-    df_sort: DataFrame
-        DataFrame with wanted value for Fresnel.
-
-    """
-    # First remove all elevation bellow 0
-    df_sp3 = df_sp3[df_sp3['elevation'] > 0]
-    
-    # If elev is a list
-    if isinstance(elev, list):
-        
-        print("Input is a list")
-        
-        elev_min = elev[0] - 1
-        elev_max = elev[1] + 1
-        
-        print("Minimum elevation is:", elev_min, "Maximum elevation is:", elev_max)
-        
-        # Just check if user didn't miss input
-        if elev_min>elev_max:
-            raise Exception("Minimum elevation greater than maximum elevation")  
-
-        df_sp3 = df_sp3.loc[(df_sp3['elevation'] >= elev_min) & (df_sp3['elevation'] <= elev_max)]
-
-    # If elev is only one number
-    else:
-        print("Input is a number")
-        # Take some range to not remove all elevation values
-        elev_min = elev - 1
-        elev_max = elev + 1
-        print("Minimum elevation is:", elev_min, "Maximum elevation is:", elev_max)
-        df_sp3 = df_sp3.loc[(df_sp3['elevation'] >= elev_min) & (df_sp3['elevation'] <= elev_max)]
-
-    return df_sp3

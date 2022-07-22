@@ -9,18 +9,19 @@ To compute and show the first Fresnel Zone
 import numpy as np
 import matplotlib.pyplot as plt
 import math as m
-from Geod import CarttoGeo, GeotoCart
+from private.Geod import CarttoGeo, GeotoCart
+from shapely.geometry.polygon import Polygon
 
 # Usefull constants
-c = 299792458               # m.s-1 Speed of light
-L1_GPS = 1575.42e6         # Hz L1 frequency for GPS
-L2_GPS = 1227.60e6         # Hz L2 frequency for GPS
-L1_Glo = 1575.42e6         # Hz L1 frequency for GPS
-L2_Glo = 1227.60e6         # Hz L2 frequency for GPS
-lambda_L1_GPS = (c/L1_GPS)     # m wavelenght for L1 GPS
-lambda_L2_GPS = (c/L2_GPS)     # m wavelenght for L2 GPS
-lambda_L1_Glo = (c/L1_Glo)     # m wavelenght for L1 Glonass
-lambda_L2_Glo = (c/L2_Glo)     # m wavelenght for L2 Glonass
+c = 299792458                   # m.s-1 Speed of light
+L1_GPS = 1575.42e6              # Hz L1 frequency for GPS
+L2_GPS = 1227.60e6              # Hz L2 frequency for GPS
+L1_Glo = 1575.42e6              # Hz L1 frequency for Glonass
+L2_Glo = 1227.60e6              # Hz L2 frequency for Glonass
+lambda_L1_GPS = (c/L1_GPS)      # m wavelenght for L1 GPS
+lambda_L2_GPS = (c/L2_GPS)      # m wavelenght for L2 GPS
+lambda_L1_Glo = (c/L1_Glo)      # m wavelenght for L1 Glonass
+lambda_L2_Glo = (c/L2_Glo)      # m wavelenght for L2 Glonass
 
 
 
@@ -124,106 +125,108 @@ def plotEllipse(a, b, R, lon, lat, h, azim, color):
     A plot of the ellipse
     """
     if azim > 360 or azim < 0:
-        raise Exception("Wrong value azim, should be between 0 and 360!")  
+        raise Exception("Wrong value of azimuth, should be between 0 and 360!")  
         
     # Set coordinates of the receiver to cartesians
     X,Y,Z = GeotoCart(lon,lat,h)
 
     azim = azim *np.pi/180
-    #xR = R*np.sin(azim)  # x-position of the center
-    #yR = R*np.cos(azim)  # y-position of the center
     theta = 0 
         
+    # As azimuth starts from North in reality, needs to change angle for every 
+    # quarter of trigonometric circle...
     if 0<=azim<=np.pi/2:
-        theta = (90*np.pi/180) - azim  # rotation angle
-#        print('theta angle;', theta)
-        xR = X + R*np.sin(theta)  # x-position of the center
-        yR = Y + R*np.cos(theta)  # y-position of the center
-#        print('xR:',xR)
-#        print('________')
-#        print('yR:',yR)
+        theta = (90*np.pi/180) - azim               # rotation angle
+        xR = X + R*np.sin(theta)                    # x-position of the center
+        yR = Y + R*np.cos(theta)                    # y-position of the center
+
     if np.pi/2<azim<=np.pi:
-        theta = (360*np.pi/180) - azim + np.pi/2  # rotation angle
-#        print('theta angle;', theta)
-        xR = X + R*np.sin(theta)  # x-position of the center
-        yR = Y + R*np.cos(theta)  # y-position of the center
-#        print('xR:',xR)
-#        print('________')
-#        print('yR:',yR)
+        theta = (360*np.pi/180) - azim + np.pi/2    # rotation angle
+        xR = X + R*np.sin(theta)                    # x-position of the center
+        yR = Y + R*np.cos(theta)                    # y-position of the center
+
     if np.pi<azim<=3*np.pi/2:
-        theta = 2*np.pi - azim + np.pi/2  # rotation angle
-#        print('theta angle;', theta)
-        xR = X + R*np.sin(theta)  # x-position of the center
-        yR = Y + R*np.cos(theta)  # y-position of the center
-#        print('xR:',xR)
-#        print('________')
-#        print('yR:',yR)
+        theta = 2*np.pi - azim + np.pi/2            # rotation angle
+        xR = X + R*np.sin(theta)                    # x-position of the center
+        yR = Y + R*np.cos(theta)                    # y-position of the center
+
     if 3*np.pi/2<azim<=2*np.pi: 
-        theta = 2*np.pi - azim + np.pi/2  # rotation angle
-#        print('theta angle;', theta)
-        xR = X + R*np.sin(theta)  # x-position of the center
-        yR = Y + R*np.cos(theta)  # y-position of the center
-#        print('xR:',xR)
-#        print('________')
-#        print('yR:',yR)
+        theta = 2*np.pi - azim + np.pi/2            # rotation angle
+        xR = X + R*np.sin(theta)                    # x-position of the center
+        yR = Y + R*np.cos(theta)                    # y-position of the center
+
 
     t = np.linspace(0, 2*np.pi, 100)
 
+    # Parametric equation of ellipse
     x = xR + a*np.cos(azim)*np.cos(t) - b*np.sin(azim)*np.sin(t)
     y = yR + a*np.sin(azim)*np.cos(t) + b*np.cos(azim)*np.sin(t)
-  #  plt.axis('equal')
   
+    # Changing back the coordinates to geographic
     for i in range(len(x)):
         z = 0
         x[i],y[i], z = CarttoGeo(x[i],y[i],Z)
-        print("x:",x[i])
-        print('y:',y[i])
         
-    plt.plot(x, y, color=color)  # rotated ellipse
-    # plt.fill_between(x,y, color=color, alpha=0.4)
+    # The rotated (or not) ellipse
+    plt.plot(x, y, color=color)
+    p = Polygon(list(zip(x,y)))
 
-    return
+    return p
 
 ###############################################################################
 
-def Center(a, b, R, color):
+def Center(a, b, R, color=None):
+    """
+    This function just return the center of an ellipse.
+
+    Parameters
+    ----------
+   a: float
+       semi-major axis, aligned with the satellite azimuth (meters).
+   b: float
+       semi-minor axis (meters).
+   R: float 
+       locates the center of the ellispe on the satellite azimuth direction 
+       and R meters away from the base of the Antenna.
+   color: String (optional)
+       color of center points.
+
+    Returns
+    -------
+    plot of center of ellipses.
+
+    """
     azim = np.linspace(0, 2*np.pi, 50)    
     for angle in azim:
         if 0<=angle<=np.pi/2:
             theta = (90*np.pi/180) - azim  # rotation angle
-    #        print('theta angle;', theta)
+
             xR = R*np.sin(theta)  # x-position of the center
             yR = R*np.cos(theta)  # y-position of the center
-    #        print('xR:',xR)
-    #        print('________')
-    #        print('yR:',yR)
+
         if np.pi/2<angle<=np.pi:
             theta = (360*np.pi/180) - azim + np.pi/2  # rotation angle
-    #        print('theta angle;', theta)
+
             xR = R*np.sin(theta)  # x-position of the center
             yR = R*np.cos(theta)  # y-position of the center
-    #        print('xR:',xR)
-    #        print('________')
-    #        print('yR:',yR)
+
         if np.pi<angle<=3*np.pi/2:
             theta = 2*np.pi - azim + np.pi/2  # rotation angle
-    #        print('theta angle;', theta)
+
             xR = R*np.sin(theta)  # x-position of the center
             yR = R*np.cos(theta)  # y-position of the center
-    #        print('xR:',xR)
-    #        print('________')
-    #        print('yR:',yR)
+
         if 3*np.pi/2<angle<=2*np.pi: 
             theta = 2*np.pi - azim + np.pi/2  # rotation angle
-    #        print('theta angle;', theta)
+
             xR = R*np.sin(theta)  # x-position of the center
             yR = R*np.cos(theta)  # y-position of the center
-    #        print('xR:',xR)
-    #        print('________')
-    #        print('yR:',yR)
-            plt.scatter(xR,yR, color=color)
-    return
-            
-# geo.overijssel.nl to look for db of rivers
-# rijkswaterstaa.nl to look for bd of rivers
 
+        if color != None:
+            plt.axis('equal')
+            plt.scatter(xR,yR, color=color)
+        else:
+            plt.axis('equal')
+            plt.scatter(xR,yR)
+
+    return
