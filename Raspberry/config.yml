@@ -1,0 +1,4 @@
+parameters:
+- port: int # port of the raspberry XXXX; required
+  path_to_file: String # path where file will be stored, like '/home/user/'; required
+  name: String # name of the output file; required
