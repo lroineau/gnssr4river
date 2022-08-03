@@ -2,7 +2,12 @@
 ---
 ### Change the yaml config file
 
-TODO, ask Roelof
+The file ``config.yml`` is the file used for configuration. Open it with a text editor and change the value.
+
+* ``daily`` *True or False*, set to True if you want your files to be daily, meaning they close every day at midnight. If set to True, the name of the file will be the name you choose followed by the date YYYY-mm-d. **Note that raspberry uses internet connection to retrieve date every time it boots, so having no internet connection might result in mistakes with the dates**.
+* ``file_name`` *ex: myfile*, the name of the output file containing the data
+* ``path_to_file`` *ex: /home/user*, the path where the file will be stored
+* ``port`` *ex: 9600*, the port of the Raspberry which is used  
 
 ### How to setup a service file
 

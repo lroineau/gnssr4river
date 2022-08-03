@@ -1,4 +1,13 @@
-parameters:
-- port: int # port of the raspberry XXXX; required
-  path_to_file: String # path where file will be stored, like '/home/user/'; required
-  name: String # name of the output file; required
+# Yaml file for configuration
+# Replace each value with yours
+# Set daily to True if you want your file to be daily
+# Note that Raspberry needs to log to internet to retrieve current hour
+---
+service: 
+  daily: False
+
+parameters: 
+  file_name: gnss_r
+  path_to_file: /home/user
+  port: 9600
+
