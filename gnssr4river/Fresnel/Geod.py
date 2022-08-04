@@ -9,6 +9,7 @@ This code contains usefull functions for geodesic calculs.
 import numpy as np
 import math as m
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # Some parameters of WGS84 projection...
 a = 6378137.0             # Earth radius (m)
@@ -18,24 +19,6 @@ b = a*(1-f)
 e_pr = np.sqrt((a**2 - b**2) / b**2) # second excentricity
 
 ###############################################################################
-
-# formules de passage du repère local au repère géocentrique
-
-# (XL)   
-# (YL) =  A . B 
-# (ZL)
-
-# Coordonnées du point M
-# lambda1 = 
-# phi1 = 
-
-# rot = np.array([       -np.sin(lambda1),               np.cos(lambda1),              0     ],
-#                [-np.sin(phi1)*np.cos(lambda1),  -np.sin(phi1)*np.sin(lambda1), np.cos(phi1)],
-#                [ np.cos(phi1)*np.cos(lambda1),   np.cos(phi1)*np.sin(lambda1), np.sin(phi1)])
-
-# B = np.array([x - N1*np.cos(lambda1)*np.cos(phi1)],
-#              [y - N1*np.sin(lambda1)*np.cos(phi1)],
-#              [z - N1*(1-e**2)*np.sin(phi1)       ])
 
 def GeotoCart(lon, lat, h):
     """
@@ -103,13 +86,14 @@ def CarttoGeo(X,Y,Z):
     return lon, lat, h
 
 
-def sp3toGeo(df_sp3,lon,lat,h):
+
+def elevazim(df_sp3,lon,lat,h):
     """
     This function takes the coordinates given in a sp3 file and gives the elevation and azimut of the satellite seen from the receiver.
     
     Parameters
     ----------
-    file: DataFrame
+    df_sp3: DataFrame
         sp3 file 
     lon,lat: float 
         longitude and latitude of receivers in degrees
@@ -126,6 +110,7 @@ def sp3toGeo(df_sp3,lon,lat,h):
     xsat = df_sp3["x"] * 1000
     ysat = df_sp3["y"] * 1000
     zsat = df_sp3["z"] * 1000
+    # Add the other columns
     prn = df_sp3["prn"]
     week = df_sp3["week"]
     tow = df_sp3["tow"]
@@ -133,121 +118,51 @@ def sp3toGeo(df_sp3,lon,lat,h):
 
     print("Calculation of satellites coordinates in progress, may take a while...")
 
-    # Make the output DataFrame
+    # Get x,y,z of receiver
     x,y,z = GeotoCart(lon,lat,h)
+    
+    # Make the output DataFrame
     a_list = list(range(1, len(xsat)))
     df = pd.DataFrame(columns = ['PRN', 'week', 'tow','clock', 'elevation', 'azimuth'], index = a_list)
 
-    # Local coordinates system
-    v_norm, East, North = up(lon,lat)
-    
-    # Calcul elevation and azimut for each satellite of the file
+    # Put unit to radians
+    lon = m.radians(lon)
+    lat = m.radians(lat)
+
+    ## Calcul elevation and azimut for each satellite of the file ##
     for i in range(len(xsat)):
+        # Vector between satellite and antenna
         X = xsat[i]-x
         Y = ysat[i]-y
         Z = zsat[i]-z
         
-        VSat_Rec = np.array([X,Y,Z])
-        
-        elev = elev_angle(v_norm, VSat_Rec)
-        azim = azimut_angle(VSat_Rec, East, North)
+        # Rotation matrix
+        N = -np.sin(lat)*np.cos(lon)*X - np.sin(lat)*np.sin(lon)*Y + np.cos(lat)*Z
+        E = - np.sin(lon)*X + np.cos(lon)*Y
+        Z = np.cos(lat)*np.cos(lon)*X + np.cos(lat)*np.sin(lon)*Y + np.sin(lat)*Z
+ 
+        # Calculation of the azimuth
+        az = np.arctan2(E, N)*180/np.pi        
+        # if it is negatif, we add 2pi
+        if az < 0:
+            az = 360 + az
+  
+        # Calculation of the elevation
+        r = np.sqrt(X**2 + Y**2 + Z**2)
+        # el = np.arcsin(Z/r)
+        angle = np.arccos(Z/r)
+        el2 = (np.pi/2.0 - angle)*180/np.pi
+
+        # Putting everything in the DataFrame        
         sat = prn[i]
         we = week[i]
         tw = tow[i]
         cl = clock[i]
-        df.loc[f'{i}'] = [f'{sat}',f'{we}',f'{tw}',f'{cl}',round(elev),round(azim)]      
-    
+        df.loc[f'{i}'] = [f'{sat}',f'{we}',f'{tw}',f'{cl}',round(el2),round(az)] 
+        
     # Drop potential nan inside dataframe
     df = df.dropna()
     
+    # Set type to float, overwise it is String
     df = df.astype({'week':'float','tow':'float','clock':'float','azimuth':'float'})
-        
     return df
- 
-###############################################################################
-    
-def up(lon,lat):
-    """
-    This function gives the normal, east and north vectors for azimut calculs.
-    
-    Parameters
-    ----------
-    lat,lon: float
-        location of latitude and longitudee in degrees 
-        
-    Return
-    ------
-    v_norm, East, North: array
-        up unit vector, and local east and north unit vectors
-    """
-    # set unit to radians
-    lon = m.radians(lon)
-    lat = m.radians(lat)
-    
-    # up vector
-    xo = np.cos(lon)*np.cos(lat)
-    yo = np.sin(lon)*np.cos(lat)
-    zo = np.sin(lat)
-    v_norm = np.array([xo,yo,zo])    
-
-    # north and east vectors
-    North = np.zeros(3)
-    East = np.zeros(3)
-    North[0] = -np.sin(lat)*np.cos(lon)
-    North[1] = -np.sin(lat)*np.sin(lon)
-    North[2] = np.cos(lat)
-    East[0] = -np.sin(lon)
-    East[1] = np.cos(lon)
-    East[2] = 0
-    return v_norm, East, North
-
-###############################################################################
-
-def elev_angle(v_norm, VSat_Rec):
-    """
-    This function gives the elevation of the satellite from the receiver.
-    
-    Parameters
-    ----------
-    v_norm: array
-        unit vector in up direction
-    Vsat_Rec: array
-        Cartesian vector that points from receiver to the satellite in meters
-        
-    Return
-    ------
-    elev_sat: float
-        elevation angle in degrees
-    """
-    angle = np.arccos(np.dot(VSat_Rec,v_norm) / (np.linalg.norm(VSat_Rec)))
-    elev_sat = np.pi/2.0 - angle
-    
-    return elev_sat*180/np.pi
-
-###############################################################################
-
-def azimut_angle(VSat_Rec, East, North):
-    """
-    This function gives the azimuth of the satellite from the receiver.
-    
-    Parameters
-    ----------
-    Vsat_Rec: array
-        Cartesian vector that points from receiver to the satellite in meters
-    East, North: array
-        Local east and north unit vectors  
-        
-    Return
-    ------
-    azim_sat: float
-        azimuth angle in degrees
-    """
-    staSatE = East[0]*VSat_Rec[0] + East[1]*VSat_Rec[1] + East[2]*VSat_Rec[2]
-    staSatN = North[0]*VSat_Rec[0] + North[1]*VSat_Rec[1] + North[2]*VSat_Rec[2]
-    
-    azim_sat = np.arctan2(staSatE, staSatN)*180/np.pi
-    if azim_sat < 0:
-        azim_sat = 360 + azim_sat
-
-    return azim_sat
-

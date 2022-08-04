@@ -15,7 +15,9 @@ import subprocess
 import pandas as pd
 import datetime as d
 from io import BytesIO
-from private.Geod import *
+from Geod import *
+import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 
 ###############################################################################
 
@@ -219,11 +221,62 @@ def ElevationSort(df_sp3, elev):
         print("Input is a number")
         
         # Take some range to not remove all elevation values
-        elev_min = elev - 2
-        elev_max = elev + 2
+        elev_min = elev - 1
+        elev_max = elev + 1
         
         print("Minimum elevation is:", elev_min, "\nMaximum elevation is:", elev_max)
         
         df_sp3 = df_sp3.loc[(df_sp3['elevation'] >= elev_min) & (df_sp3['elevation'] <= elev_max)]
     
     return df_sp3
+
+###############################################################################
+
+def clean_dir():
+    """
+    Simple function to clean directory where sp3 files arre stored.
+    """
+    dir = 'Orbits'
+    for f in os.listdir(dir):
+        os.remove(os.path.join(dir, f))
+    return
+
+###############################################################################
+
+def skyplot(df,unique=False):
+    """
+    Print a skyplot with angle starting from North and going clockwise.
+    If unique set to True, show only one satellite.
+
+    Parameters
+    ----------
+    az : list
+        list of azimuth (degrees).
+    el : list
+        list of elevation (degrees).
+
+    Returns
+    -------
+    None.
+
+    """
+    if unique==True:
+    
+        df = df.loc[(df['PRN'] == '22.0')]
+
+        az = df['azimuth'].to_list()
+        el = df['elevation'].to_list()
+    
+    elif unique==False:
+        
+        az = df['azimuth'].to_list()
+        el = df['elevation'].to_list()
+    
+    ax = plt.subplot(111, projection='polar')
+    ax.set_ylim(bottom=90, top=0)
+    ax.scatter(az, el)
+
+    ax.set_theta_zero_location("N")  # theta=0 at the top
+    ax.set_theta_direction(-1)  # theta increasing clockwise
+    ax.set_title("Skyplot", va='bottom')
+    plt.show()
