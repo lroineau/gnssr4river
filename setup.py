@@ -20,7 +20,7 @@ setuptools.setup(
     url="https://github.com/lroineau/gnssr4river",
     packages=find_packages("."),
     package_dir={"":"."},
-    install_requires=['numpy','math','pandas','shapely','matplotlib','wget','os','geopandas','unlzw3','pathlib','GDAL','Shapely','io','cartopy','urllib'],
+    install_requires=['numpy','pandas','shapely','matplotlib','wget','geopandas','unlzw3','GDAL','Shapely','cartopy'],
     classifiers=["Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         "Operating System :: POSIX :: Linux",
