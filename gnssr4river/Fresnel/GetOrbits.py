@@ -13,28 +13,35 @@ import unlzw3
 from pathlib import Path
 import subprocess
 import pandas as pd
-import datetime as d
+from datetime import datetime 
 from io import BytesIO
-from Geod import *
+from gnssr4river.Fresnel.Geod import *
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 
 ###############################################################################
 
-def gpsweek(year, month, day, hour, minute, second):
+def gpsweek(date=datetime.now()):
     """
     Return the gps week and secondes for a given date (adapted from a code by Kristin Larson). 
 
     Parameters
     ----------
-    year, month, day, hour, minute, second : int
-        Year (xxx), month, day, hour, minute, second to be change to gps week (default is current daytime)
+    date: datetime
+        date to use for determining the gps week
 
     Return
     ------
     GPS_wk, GPS_sec_wk : int       
         the gps week and second of the week
     """
+
+    hour=date.hour
+    minute=date.minute
+    second=date.second
+    month=date.month
+    year=date.year
+    day=date.day
     UT=hour+minute/60.0 + second/3600. 
     if month > 2:
         y=year
@@ -52,38 +59,24 @@ def gpsweek(year, month, day, hour, minute, second):
 
 ###############################################################################
 
-def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, second=None):
+def retrieve_orbits(date=datetime.now()):
     """
     Retrieve the orbits of GPS and Glonass constellations from ESA site. If date is not specified, takes current date.
 
     Parameters
     ----------
-    year, month, day, hour, minute, second : int
-        Year (xxx), month, day, hour, minute, second (default is current daytime)
-    
+    date: datetime
+        The date used to determine the GPS week for which the orbits will be downloaded (default takes the current date)  
     Return
     ------
     
     """
-    # Date given by user
-    giv_date = [str(year),str(month),str(day),str(hour),str(minute),str(second)]
-
-    # Calcul the current date
-    cur_date = d.datetime.now()
-    cur_date = cur_date.strftime("%Y,%m,%d,%H,%M,%S")
-    cur_date = cur_date.split(",")
-    cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second = int(cur_date[0]), int(cur_date[1]), int(cur_date[2]), int(cur_date[3]), int(cur_date[4]), int(cur_date[5])
-
-    # if the date is not given by the user, take current date
-    if year==None:
-        year, month, day, hour, minute, second = cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second
-        
     # if user gives an incorrect date
-    if giv_date > cur_date is True:
-        raise Exception("Cannot give a date that is yet to come !")  
+    if date > datetime.now():
+        raise RuntimeError("Cannot give a date that is yet to come !")  
 
     # Retrieve first the gps week
-    GPS_wk, GPS_sec_wk = gpsweek(year, month, day, hour, minute, second)    
+    GPS_wk, GPS_sec_wk = gpsweek(date)    
     print('GPS week is:', GPS_wk)
     
     # Create directory
