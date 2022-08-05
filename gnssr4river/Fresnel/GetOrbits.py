@@ -13,28 +13,35 @@ import unlzw3
 from pathlib import Path
 import subprocess
 import pandas as pd
-import datetime as d
+from datetime import datetime 
 from io import BytesIO
-from Geod import *
+from gnssr4river.Fresnel.Geod import *
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 
 ###############################################################################
 
-def gpsweek(year, month, day, hour, minute, second):
+def gpsweek(date=datetime.now()):
     """
     Return the gps week and secondes for a given date (adapted from a code by Kristin Larson). 
 
     Parameters
     ----------
-    year, month, day, hour, minute, second : int
-        Year (xxx), month, day, hour, minute, second to be change to gps week (default is current daytime)
+    date: datetime
+        date to use for determining the gps week
 
     Return
     ------
     GPS_wk, GPS_sec_wk : int       
         the gps week and second of the week
     """
+
+    hour=date.hour
+    minute=date.minute
+    second=date.second
+    month=date.month
+    year=date.year
+    day=date.day
     UT=hour+minute/60.0 + second/3600. 
     if month > 2:
         y=year
@@ -52,38 +59,24 @@ def gpsweek(year, month, day, hour, minute, second):
 
 ###############################################################################
 
-def retrieve_orbits(year=None, month=None, day=None, hour=None, minute=None, second=None):
+def retrieve_orbits(date=datetime.now()):
     """
     Retrieve the orbits of GPS and Glonass constellations from ESA site. If date is not specified, takes current date.
 
     Parameters
     ----------
-    year, month, day, hour, minute, second : int
-        Year (xxx), month, day, hour, minute, second (default is current daytime)
-    
+    date: datetime
+        The date used to determine the GPS week for which the orbits will be downloaded (default takes the current date)  
     Return
     ------
     
     """
-    # Date given by user
-    giv_date = [str(year),str(month),str(day),str(hour),str(minute),str(second)]
-
-    # Calcul the current date
-    cur_date = d.datetime.now()
-    cur_date = cur_date.strftime("%Y,%m,%d,%H,%M,%S")
-    cur_date = cur_date.split(",")
-    cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second = int(cur_date[0]), int(cur_date[1]), int(cur_date[2]), int(cur_date[3]), int(cur_date[4]), int(cur_date[5])
-
-    # if the date is not given by the user, take current date
-    if year==None:
-        year, month, day, hour, minute, second = cur_year, cur_month, cur_day, cur_hour, cur_minute, cur_second
-        
     # if user gives an incorrect date
-    if giv_date > cur_date is True:
-        raise Exception("Cannot give a date that is yet to come !")  
+    if date > datetime.now():
+        raise RuntimeError("Cannot give a date that is yet to come !")  
 
     # Retrieve first the gps week
-    GPS_wk, GPS_sec_wk = gpsweek(year, month, day, hour, minute, second)    
+    GPS_wk, GPS_sec_wk = gpsweek(date)    
     print('GPS week is:', GPS_wk)
     
     # Create directory
@@ -153,8 +146,9 @@ def read_sp3(file):
         week, tow, x, y, z, clock, prn = np.zeros((nepoch*nprn, 7)).T
         for i in range(nepoch):
             year, month, day, hour, minute, second = np.array(epochs[i].split()[1:], dtype=float)
+            dtepoch=datetime(year=int(year),month=int(month),day=int(day),hour=int(hour),second=int(second))
             week[i*nprn:(i+1)*nprn], tow[i*nprn:(i+1)*nprn] = \
-				gpsweek(year, month, day, hour, minute, second)
+				gpsweek(dtepoch)
             for j in range(nprn):
                 prn[i*nprn+j] =  int(lines[i*(nprn+1)+j+1][2:4])
                 x[i*nprn+j] = float(lines[i*(nprn+1)+j+1][4:18])
@@ -163,17 +157,17 @@ def read_sp3(file):
                 clock[i*nprn+j] = float(lines[(i)*(nprn+1)+j+1][46:60])
                 
     # if file not found
-    except:
+    except Exception as exc:
         print('sorry - the sp3file does not exist')
         week,tow,x,y,z,prn,clock=[0,0,0,0,0,0,0]
 		
     # Set the DataFrame
-    df_sp3 = pd.DataFrame({"week":week,
+    df_sp3 = pd.DataFrame({"week":week.astype(int),
                            "tow":tow, 
                            "x":x,
                            "y":y,
                            "z":z,
-                           "prn":prn,
+                           "prn":prn.astype(int),
                            "clock":clock})
         
     return df_sp3
@@ -272,11 +266,14 @@ def skyplot(df,unique=False):
         az = df['azimuth'].to_list()
         el = df['elevation'].to_list()
     
+    azrad=[np.pi/180*z for z in az]
     ax = plt.subplot(111, projection='polar')
     ax.set_ylim(bottom=90, top=0)
-    ax.scatter(az, el)
-
     ax.set_theta_zero_location("N")  # theta=0 at the top
     ax.set_theta_direction(-1)  # theta increasing clockwise
     ax.set_title("Skyplot", va='bottom')
+    
+    ax.scatter(azrad,el)
+
+
     plt.show()
