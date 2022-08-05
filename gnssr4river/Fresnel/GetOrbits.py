@@ -146,8 +146,9 @@ def read_sp3(file):
         week, tow, x, y, z, clock, prn = np.zeros((nepoch*nprn, 7)).T
         for i in range(nepoch):
             year, month, day, hour, minute, second = np.array(epochs[i].split()[1:], dtype=float)
+            dtepoch=datetime(year=int(year),month=int(month),day=int(day),hour=int(hour),second=int(second))
             week[i*nprn:(i+1)*nprn], tow[i*nprn:(i+1)*nprn] = \
-				gpsweek(year, month, day, hour, minute, second)
+				gpsweek(dtepoch)
             for j in range(nprn):
                 prn[i*nprn+j] =  int(lines[i*(nprn+1)+j+1][2:4])
                 x[i*nprn+j] = float(lines[i*(nprn+1)+j+1][4:18])
@@ -156,17 +157,17 @@ def read_sp3(file):
                 clock[i*nprn+j] = float(lines[(i)*(nprn+1)+j+1][46:60])
                 
     # if file not found
-    except:
+    except Exception as exc:
         print('sorry - the sp3file does not exist')
         week,tow,x,y,z,prn,clock=[0,0,0,0,0,0,0]
 		
     # Set the DataFrame
-    df_sp3 = pd.DataFrame({"week":week,
+    df_sp3 = pd.DataFrame({"week":week.astype(int),
                            "tow":tow, 
                            "x":x,
                            "y":y,
                            "z":z,
-                           "prn":prn,
+                           "prn":prn.astype(int),
                            "clock":clock})
         
     return df_sp3
@@ -265,11 +266,14 @@ def skyplot(df,unique=False):
         az = df['azimuth'].to_list()
         el = df['elevation'].to_list()
     
+    azrad=[np.pi/180*z for z in az]
     ax = plt.subplot(111, projection='polar')
     ax.set_ylim(bottom=90, top=0)
-    ax.scatter(az, el)
-
     ax.set_theta_zero_location("N")  # theta=0 at the top
     ax.set_theta_direction(-1)  # theta increasing clockwise
     ax.set_title("Skyplot", va='bottom')
+    
+    ax.scatter(azrad,el)
+
+
     plt.show()
