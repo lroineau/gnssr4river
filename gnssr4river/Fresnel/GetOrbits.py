@@ -10,11 +10,10 @@ import os
 import numpy as np
 import unlzw3
 from pathlib import Path
-import subprocess
 import pandas as pd
 from datetime import datetime 
 from io import BytesIO
-from Geod import *
+from geod import *
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 
@@ -32,6 +31,43 @@ def gpsweek(date=datetime.now()):
     GPS_wk, GPS_sec_wk : int       
         the gps week and second of the week
     """
+
+    hour=date.hour
+    minute=date.minute
+    second=date.second
+    month=date.month
+    year=date.year
+    day=date.day
+    UT=hour+minute/60.0 + second/3600. 
+    if month > 2:
+        y=year
+        m=month
+    else:
+        y=year-1
+        m=month+12
+        
+    JD=np.floor(365.25*y) + np.floor(30.6001*(m+1)) + day + (UT/24.0) + 1720981.5
+    GPS_wk=np.floor((JD-2444244.5)/7.0);
+    GPS_wk = int(GPS_wk)
+    GPS_sec_wk=np.rint((((JD-2444244.5)/7)-GPS_wk)*7*24*3600)            
+     
+    return GPS_wk, GPS_sec_wk
+
+###############################################################################
+
+def dateUTC(GPS_wk, GPS_sec_wk):
+    """
+    Inverse function that gives the UTC date from data contain in a GNSS file    
+    Parameters
+    ----------
+    date: datetime
+        date to use for determining the gps week
+    Return
+    ------
+    GPS_wk, GPS_sec_wk : int       
+        the gps week and second of the week
+    """
+
 
     hour=date.hour
     minute=date.minute
@@ -114,6 +150,7 @@ def retrieve_orbits(date=datetime.now()):
 def read_sp3(file):
     """
     Read the sp3 file and turn it to a DataFrame. Can also be a Bytes file if unzipped directly with unlzw3.
+    
     Parameters
     ----------
     file : String or Bytes
@@ -140,12 +177,17 @@ def read_sp3(file):
         epochs = lines[::(nprn+1)]
         nepoch =  len(lines[::(nprn+1)])
         week, tow, x, y, z, clock, prn = np.zeros((nepoch*nprn, 7)).T
+        sys = []
         for i in range(nepoch):
             year, month, day, hour, minute, second = np.array(epochs[i].split()[1:], dtype=float)
             dtepoch=datetime(year=int(year),month=int(month),day=int(day),hour=int(hour),second=int(second))
             week[i*nprn:(i+1)*nprn], tow[i*nprn:(i+1)*nprn] = \
 				gpsweek(dtepoch)
             for j in range(nprn):
+                if str(lines[i*(nprn+1)+j+1][1:2])=="b'R'":
+                    sys.append('GLONASS')
+                elif str(lines[i*(nprn+1)+j+1][1:2])=="b'G'":
+                    sys.append('GPS')
                 prn[i*nprn+j] =  int(lines[i*(nprn+1)+j+1][2:4])
                 x[i*nprn+j] = float(lines[i*(nprn+1)+j+1][4:18])
                 y[i*nprn+j] = float(lines[i*(nprn+1)+j+1][18:32])
@@ -158,7 +200,9 @@ def read_sp3(file):
         week,tow,x,y,z,prn,clock=[0,0,0,0,0,0,0]
 		
     # Set the DataFrame
-    df_sp3 = pd.DataFrame({"week":week.astype(int),
+    df_sp3 = pd.DataFrame({"date":dtepoch,
+                           "system":sys,
+                           "week":week.astype(int),
                            "tow":tow, 
                            "x":x,
                            "y":y,
@@ -170,7 +214,7 @@ def read_sp3(file):
 
 ###############################################################################
 
-def ElevationSort(df_sp3, elev):
+def elevationSort(df_sp3, elev):
     """
     This function takes the sp3 DataFrame of satellites, and keep only good values of elevation.
     
@@ -232,32 +276,41 @@ def clean_dir():
 
 ###############################################################################
 
-def skyplot(df,unique=False):
+def skyplot(df,GPS=True,GLONASS=True):
     """
     Print a skyplot with angle starting from North and going clockwise.
-    If unique set to True, show only one satellite.
+    
     Parameters
     ----------
-    az : list
-        list of azimuth (degrees).
-    el : list
-        list of elevation (degrees).
+    df: DataFrame
+        The dataframe from the satellites
     Returns
     -------
-    None.
+    Skyplot 
     """
-    if unique==True:
-    
-        df = df.loc[(df['PRN'] == '22.0')]
-
+    # Only GLONASS
+    if GLONASS==True and GPS==False:
+        df = df.loc[df['system'] == 'GLONASS']
+       
         az = df['azimuth'].to_list()
         el = df['elevation'].to_list()
     
-    elif unique==False:
+    # Only GPS
+    elif GPS==True and GLONASS==False:
+        df = df.loc[df['system'] == 'GPS']
         
         az = df['azimuth'].to_list()
         el = df['elevation'].to_list()
     
+    # Both
+    elif GPS==True and GLONASS==True:
+            
+        az = df['azimuth'].to_list()
+        el = df['elevation'].to_list()
+        
+    elif GPS==False and GLONASS==False:
+        raise Exception("No constellation to plot")
+        
     azrad=[np.pi/180*z for z in az]
     ax = plt.subplot(111, projection='polar')
     ax.set_ylim(bottom=90, top=0)
