@@ -7,64 +7,79 @@ To iterate calculation of Fresnel Zone and show reflexion points for GNSS-R
 
 
 # Usefull librairies
-import numpy as np
-import matplotlib.pyplot as plt
-from private.FresnelZone import FirstFresnelZone, plotEllipse
-from private.GetOrbits import *
-from private.PlotFresnel import *
+from fresnelzone import *
+from getorbits import *
+from plotfresnel import *
+from geod import *
 import geopandas as gpd
 
 # Usefull constants
-c = 299792458             # m.s-1 Speed of light
-L1_GPS = 1575.42e6         # Hz L1 frequency for GPS
-L2_GPS = 1227.60e6         # Hz L2 frequency for GPS
-L1_Glo = 1575.42e6         # Hz L1 frequency for Glonass
-L2_Glo = 1227.60e6         # Hz L2 frequency for Glonass
-lambda_L1_GPS = (c/L1_GPS)     # m wavelenght for L1 GPS
-lambda_L2_GPS = (c/L2_GPS)     # m wavelenght for L2 GPS
-lambda_L1_Glo = (c/L1_Glo)     # m wavelenght for L1 Glonass
-lambda_L2_Glo = (c/L2_Glo)     # m wavelenght for L2 Glonass
-crs = {'init': 'epsg:4326'}
+c = 299792458                   # m.s-1 Speed of light
+L1_GPS = 1575.42e6              # Hz L1 frequency for GPS
+L2_GPS = 1227.60e6              # Hz L2 frequency for GPS
+L1_Glo = 1602.0e6               # Hz L1 frequency for GLONASS
+L2_Glo = 1246.0e6               # Hz 21 frequency for GLONASS
+lambda_L1_GPS = (c/L1_GPS)      # m wavelenght for L1 GPS
+lambda_L2_GPS = (c/L2_GPS)      # m wavelenght for L2 GPS
+lambda_L1_Glo = (c/L1_Glo)      # m wavelenght for L1 Glo
+lambda_L2_Glo = (c/L2_Glo)      # m wavelenght for L2 Glo
+
 ###############################################################################
 
-def IterFresnel(freq, h, elev_list, lon, lat, azim_min, azim_max, df_sp3, nb=360):
+def reflZone(h, elev_list, lon, lat, output='gpkg', dirName=None, df_sp3=None):
     """
-    Iterate the FirstFresnelZone calcule.
+    Iterate the calculation of the first Fresnel zone by taking into account the visible satellites.
+    Possibily to choose output format, default is gpkg but can be set to shp or kml.
     
     Parameters
     ----------
-    freq: float
-        frequence of l_band
     h: float
-        hight of the receiver
+        Hight of the receiver.
     elev: list
-        list of elevation angle in degrees (should not exceed 4 values for vizualisation)
+        List of elevation angle in degrees (should not exceed 4 values for vizualisation).
     lon,lat: float
-        position of the receiver in geographical coordinates (degrees)
+        Position of the receiver in geographical coordinates (degrees).
     h: float
-        hight of the receiver in meters
-    azim_min, azim_max: float
-        minimum and maximum azimut for calcule  
-    nb: int
-        number of ellipse to plot
+        Hight of the receiver in meters. 
+    output: str
+        Output format of file, can be either shp, gpkg or kml. Default is gpkg.
+    dirName: str
+        Directory on which files will be stored.
     df_sp3: DataFrame
-        unsorted sp3 file of satellites.
+        If you wantto give a modified DataFrame of avaible satellites. Default
+        uses latest orbits file with no modification on it.
     
     Return
     ------
-    A plot with all Fresnel zones
+    gdf: GeoDataFrame
+        GeoDataFrame that is exported to the desired format.
     """
-    # Set azimut and color
-    # azim = np.linspace(azim_min, azim_max, nb)
-    color = ['yellow','blue','red','green']
+    if df_sp3==None:
+        # Get orbits file
+        orb = retrieve_orbits()
+        df = read_sp3(orb)
 
+        # Calculate elevation and azimuth
+        df_sp3 = elevazim(df,lon,lat,h)
+
+        # Remove all values bellow 0° elevation, i.e satellites that are not visible
+        df_sp3 = df_sp3[df_sp3['elevation'] > 0]
+    
     # Empty list to store Polygon and Polygons area
     pol = []    
-    # l_area = []
-    
+    el = []
+    larea = []
+    az = []
+    # Create directory
+    if dirName==None:
+        dirName = 'FresnelZones'
+    # Create target Directory if don't exist
+    if not os.path.exists(dirName):
+        os.mkdir(dirName)
+        print(f"Files will be stored in directory {dirName}")
+            
     # Check if elevation is a list or a single value
     if isinstance(elev_list, list):
-        print('More than one elevation given, processing...')
         # Calcule First Fresnel Surface for each elevation angles
         c = 0
         for elev in elev_list:
@@ -77,14 +92,20 @@ def IterFresnel(freq, h, elev_list, lon, lat, azim_min, azim_max, df_sp3, nb=360
                 if val not in list_azim:
                     list_azim.append(val)
             for angle in list_azim:
-                a,b,R = FirstFresnelZone(freq, h, elev)
-                p = plotEllipse(a,b,R,lon,lat,h,angle,color[c])
-                pol.append(p)
-                # l_area.append(area)
+                a,b,R = firstFresnelZone(L1_GPS, h, elev)
+                ellr,area=plotEllipse(a, b, R, lon, lat, h, angle)
+                pol.append(ellr)
+                el.append(elev)
+                angle2 = angle+90
+                if angle2>360:
+                    angle2=angle2-360
+                az.append(angle2)
+                larea.append(area)
+
             c+=1
-                    
+    
+    # Calcule First Fresnel Surface for the only elevation angle
     else:
-        print('only one elevation given, processing...')
         elev = elev_list
         df_sp3 = df_sp3.loc[(df_sp3['elevation'] == elev)]
         azim = df_sp3["azimuth"]
@@ -96,19 +117,43 @@ def IterFresnel(freq, h, elev_list, lon, lat, azim_min, azim_max, df_sp3, nb=360
                 list_azim.append(val)
         # Calcule First Fresnel Surface for each elevation angle
         for angle in list_azim:
-            a,b,R = FirstFresnelZone(freq, h, elev)
-            p = plotEllipse(a,b,R,lon,lat,h,angle, 'green')
-            pol.append(p)
-            # l_area.append(area)
+            a,b,R = firstFresnelZone(L1_GPS, h, elev)
+            ellr, area=plotEllipse(a, b, R, lon, lat, h, angle)
+            pol.append(ellr)
+            el.append(elev)
+            angle2 = angle+90
+            if angle2>360:
+                angle2=angle2-360
+            az.append(angle2)
+            larea.append(area)
+     
+    # Create output file with GeoPandas
+    d = {'azimuth':az,'elevation':el, 'area':larea, 'geometry':pol}
+    gdf = gpd.GeoDataFrame(d)
+    gdf.insert(0, 'ID', range(len(gdf)))
+    gdf.set_crs(epsg=4326,inplace=True)
 
-    # Shp with GeoPandas
-    gdf = gpd.GeoDataFrame(crs=crs,geometry=pol)
-    #gdf.assign(area=l_area)
-    gdf.to_file(f"Fresnel{elev_list}_{h}.shp", driver='ESRI Shapefile')
-
-    return gdf       
-
-
-# For test with Dinkel coordinates
-# IterFresnel(L1_freq, 2, 25, 0, 360, nb=50)
-# IterFresnel(L1_freq, 2, [5,10,15], 0, 360, nb=50)
+    # Check format for output file
+    if output=='shp':
+        gdf.to_file(f"{dirName}/Fresnel{elev_list}_{h}.shp", driver='ESRI Shapefile')
+        if os.path.exists(f'{dirName}/Fresnel{elev_list}_{h}.shp') is True:
+            print(f"File Fresnel{elev_list}_{h}.shp successfully created in {dirName}")
+        else:
+            print("Failed to create file")
+    elif output=='gpkg':
+        gdf.to_file(f"{dirName}/Fresnel{elev_list}_{h}.gpkg", driver="GPKG")
+        if os.path.exists(f'{dirName}/Fresnel{elev_list}_{h}.gpkg') is True:
+            print(f"File Fresnel{elev_list}_{h}.gpkg successfully created in {dirName}")
+        else:
+            print("Failed to create file")
+    elif output=='kml':
+        gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
+        gdf.to_file(f"{dirName}/Fresnel{elev_list}_{h}.kml", driver="KML")
+        if os.path.exists(f'{dirName}/Fresnel{elev_list}_{h}.kml') is True:
+            print(f"File Fresnel{elev_list}_{h}.kml successfully created in {dirName}")
+        else:
+            print("Failed to create file")
+    else:
+        raise Exception("Wrong output format specified")    
+        
+    return gdf
