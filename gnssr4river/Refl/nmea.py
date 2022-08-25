@@ -85,7 +85,7 @@ def parseGNGSV(ln):
     #split line without considering the checksum at the end
     spl=ln[0:-4].split(",")
     dt={}
-    dt["system"]=spl[0][1:3].replace('GL','GLONASS').replace('GP','GPS')
+    system=spl[0][1:3].replace('GL','GLONASS').replace('GP','GPS')
     #loop over available satellite prn's
     for i in range(4,len(spl),4):
         try:
@@ -97,8 +97,9 @@ def parseGNGSV(ln):
             #It may be possible that ,,, entries occur, so we'll just ignore those
             continue
 
-        dt[prn]={"elev":elev,"az":az,"snr":snr}
-    return dt
+        dt[prn]={"system":system,"elev":elev,"az":az,"snr":snr}
+    
+    return dt   
 
 
 dispatchParse={"$GPRMC":parseGNRMC,"$GPGSV":parseGNGSV,"$GNRMC":parseGNRMC,"$GLGSV":parseGNGSV}
