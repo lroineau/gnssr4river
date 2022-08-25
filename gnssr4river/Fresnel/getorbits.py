@@ -71,11 +71,10 @@ def retrieve_orbits(date=datetime.now()):
     """
     # if user gives an incorrect date
     if date > datetime.now():
-        raise RuntimeError("Cannot give a date that is yet to come !")  
+        raise RuntimeError("Cannot give a date that is yet to come!")  
 
     # Retrieve first the gps week
     GPS_wk, GPS_sec_wk = gpsweek(date)    
-    print('GPS week is:', GPS_wk)
     t = str(int(GPS_sec_wk/86400))
 
     # Create directory
@@ -83,9 +82,7 @@ def retrieve_orbits(date=datetime.now()):
     # Create target Directory if don't exist
     if not os.path.exists(dirName):
         os.mkdir(dirName)
-        print(f"Directory {dirName} created")
-    else:    
-        print(f"Directory {dirName} already exists")
+        print(f"Files will be stored in {dirName}")
         
     # List of possible file updated
     update=['18','12','06','00']

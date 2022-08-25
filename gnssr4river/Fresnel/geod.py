@@ -142,21 +142,22 @@ def cart2geo(X,Y,Z):
 def elevazim(df_sp3,lon,lat,h):
     """
     This function takes the coordinates given in a sp3 file and gives the elevation 
-    and azimut of the satellite seen from the receiver.
+    and azimut of the satellite seen from the receiver. Only visible satellites are
+    returned.
     
     Parameters
     ----------
     df_sp3: DataFrame
         sp3 file.
     lon,lat: float 
-        longitude and latitude of receivers in degrees.
+        Longitude and latitude of receivers in degrees.
     h: float
-        heigth of the receiver in meters.
+        Heigth of the receiver in meters.
         
     Return
     ------
     df: DataFrame
-        elevation an azimut of the satellite in degrees.
+        Elevation and azimuth of visible satellites in degrees.
     """
     # Take the coordinates from the sp3, and set unit to meters
     xsat = df_sp3["x"] * 1000
@@ -212,5 +213,8 @@ def elevazim(df_sp3,lon,lat,h):
     
     # Set type, overwise it is String
     df = df.astype({'week':'int','system':'str','tow':'float','clock':'float','azimuth':'int', 'elevation':'int','PRN':'int','date':'datetime64'})
+    
+    # Remove all values bellow 0° elevation, i.e satellites that are not visible
+    df = df[df['elevation'] > 0]
     
     return df

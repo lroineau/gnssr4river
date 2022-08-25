@@ -96,10 +96,9 @@ def reflZone(h, elev_list, lon, lat, output='gpkg', dirName=None, df_sp3=None):
                 ellr,area=plotEllipse(a, b, R, lon, lat, h, angle)
                 pol.append(ellr)
                 el.append(elev)
-                angle2 = angle+90
-                if angle2>360:
-                    angle2=angle2-360
-                az.append(angle2)
+                if angle>360:
+                    angle=angle-360
+                az.append(angle)
                 larea.append(area)
 
             c+=1
@@ -121,10 +120,9 @@ def reflZone(h, elev_list, lon, lat, output='gpkg', dirName=None, df_sp3=None):
             ellr, area=plotEllipse(a, b, R, lon, lat, h, angle)
             pol.append(ellr)
             el.append(elev)
-            angle2 = angle+90
-            if angle2>360:
-                angle2=angle2-360
-            az.append(angle2)
+            if angle>360:
+                angle=angle-360
+            az.append(angle)
             larea.append(area)
      
     # Create output file with GeoPandas
