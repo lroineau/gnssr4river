@@ -86,9 +86,23 @@ def plotSnr(df, azrange=None, xaxis=0, show=False, save=True):
             plt.savefig("SNR_time.png")  
     
     
-def detrende_signal(PRN,order=4):
+def detrende_signal(df,PRN,order=4):
     """
     Detrende SNR data using low-order polynomial.
+    
+    Parameters
+    ----------
+    df: DataFrame
+        DataFrame from nmea.
+    PRN: int
+        PRN number of satellite to analyze
+    order: int
+        Order of polynomial trend to remove from the direct signal
+
+    Returns
+    -------
+    dfp: DataFrame
+        Rearanged DataFrame
     """
 
     # PRN number
@@ -108,9 +122,19 @@ def detrende_signal(PRN,order=4):
     
     return dfp
     
-def plot_detrende(dfp,PRN)
+def plot_detrende(dfp,PRN):
     """
-    plot detrende signal
+    plot detrende signal.
+    
+    Parameters
+    ----------
+    df: DataFrame
+        DataFrame from nmea.
+    PRN: int
+        PRN number of satellite to analyze.
+    Returns
+    -------
+    Plot
     """
     ax = plt.subplot()
     leg=[]
@@ -123,9 +147,24 @@ def plot_detrende(dfp,PRN)
 
     return
 
-def height_LSP(dfp,minH,maxH):
+def height_LSP(dfp,minH,maxH,PRN):
     """
     Use LSP to calculate the height.
+    
+    Parameters
+    ----------
+    dfp: DataFrame
+        Rearanged DataFrame.
+    minH, maxH: int
+        Window of expected value for the height.
+    PRN: int
+        PRN number of satellite to analyze.
+    Returns
+    -------
+    frequency,height: list
+        list of value of LSP frequencies and their equivalent in height.
+    maxF,maxAmp: float
+        max value for frequency and amplitude of the LSP (i.e. the height).
     """
     # LSP
     frequency, power = LombScargle(dfp['sinelev'],dfp['snrV']).autopower()
@@ -138,12 +177,6 @@ def height_LSP(dfp,minH,maxH):
     maxF = height[ij]
     maxAmp = np.max(power)
 
-    return frequency,height,maxF, maxAmp
-
-def plot_LSP(frequency,height,maxF, maxAmp,PRN):
-    """
-    Plot LSP.
-    """
     plt.plot(height, power) 
     plt.axvline(x=maxF, color='r', linestyle='-')
     plt.xlim(minH,maxH)
@@ -151,3 +184,4 @@ def plot_LSP(frequency,height,maxF, maxAmp,PRN):
     plt.ylabel("Amplitude")
     plt.title("LSP for PRN{PRN}")
     
+    return frequency,height,maxF,maxAmp
