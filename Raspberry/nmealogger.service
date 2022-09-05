@@ -1,0 +1,13 @@
+[Unit]
+Description=NMEA message logging service
+After=multi-user.target
+
+[Service]
+Type=simple
+User=roelof
+Restart=on-abort
+ExecStart=/usr/bin/nmealogger.py
+
+[Install]
+WantedBy=multi-user.target
+

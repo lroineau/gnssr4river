@@ -1,0 +1,9 @@
+# Yaml file for configuration
+# Replace each value with your own
+# Note that Raspberry needs to have access to the internet to retrieve current hour
+---
+file_base: gnssr3
+data_dir: /home/data/gnssr_nmea/
+device: /dev/ttyAMA0
+baudrate: 9600
+
