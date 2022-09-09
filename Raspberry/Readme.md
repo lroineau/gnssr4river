@@ -1,18 +1,18 @@
 # Raspberry Information
 ---
-### Change the yaml config file
+### Copy and Change the yaml config file
 
-The file ``config.yml`` is the file used for configuration. Open it with a text editor and change the value.
+The file ``nmeaconfig.yml`` is the file used for configuration. Copy the file to the user's home and open it with a text editor and change the value.
 
-* ``daily`` *True or False*, set to True if you want your files to be daily, meaning they close every day at midnight. If set to True, the name of the file will be the name you choose followed by the date YYYY-mm-d. **Note that raspberry uses internet connection to retrieve date every time it boots, so having no internet connection might result in mistakes with the dates**.
-* ``file_name`` *ex: myfile*, the name of the output file containing the data
-* ``path_to_file`` *ex: /home/user*, the path where the file will be stored
-* ``port`` *ex: 9600*, the port of the Raspberry which is used  
+* ``file_base`` *ex: myfile*, the basename used for naming the  output (date and increment will be appended to this e.g. providing `testname` will result in `testname_2022-01-01_00.gz`
+* ``data_dir`` *ex: /home/user*, the path where the data logs will be stored
+* ``device`` *ex: /dev/ttyAMA0, the linux serial device path which produces the nmea output   
+* ``baudrate`` *ex: 9600*, the baudrate of the serial port   
 
 ### How to setup a service file
 
-If you want your raspberry to automaticaly launch on boot a programm, you need to create a service file. This allows to simply plug your raspberry and directly execute a programm without having to open a terminal. This is very usefull for field survey.
-Follow the step to create your service file. 
+If you want your raspberry to automaticaly launch on boot a programm, you need to create a service file (see the example file [nmealogger.service](nmealogger.service). This allows to simply plug your raspberry and directly execute a programm without having to open a terminal. This is very useful for field survey wherethe raspberry boots and runs without interactive user input, or where a power failure will result in a reboot.
+
 
 We first need to create a file for the script that will be used in the service file. If you are an advanced user in Linux, you can directly retrieve the file by cloning the git repository. Else, in the terminal, write 
 ```
@@ -71,3 +71,4 @@ Your service file is now running on your raspberry until the board is shutdown, 
 ## Author
 
 * **Lubin Roineau** [lubin_roineau](https://github.com/lroineau/)
+* ** Roelof Rietbroek (slightly tweaked to point attention to exampleservice file)
